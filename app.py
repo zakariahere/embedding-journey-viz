@@ -48,24 +48,31 @@ def r3(x):
     return round(float(x), 3)
 
 
-def build_journey(batch_size=8, max_length=4):
-    """Recreate every step of the reference script and return it as JSON."""
+def build_journey(batch_size=8, max_length=4, text=None):
+    """Recreate every step of the reference script and return it as JSON.
+
+    text: optional string to run the journey on. None = the-verdict.txt.
+    """
     batch_size = max(1, min(int(batch_size), 64))
     max_length = max(2, min(int(max_length), 16))
     stride = max_length
 
     # STEP 1 ------------------------------------------------------------------
-    raw_text = TEXT_FILE.read_text(encoding="utf-8")
+    raw_text = TEXT_FILE.read_text(encoding="utf-8") if text is None else text
 
     # STEP 2 ------------------------------------------------------------------
     token_ids = tokenizer.encode(raw_text)
     token_texts = [tokenizer.decode([tid]) for tid in token_ids]
+    if not token_ids:
+        return {"error": "That text produced zero tokens - type some words first!"}
 
     # STEP 3 ------------------------------------------------------------------
     inputs_pile, targets_pile = [], []
     for i in range(0, len(token_ids) - max_length, stride):
         inputs_pile.append(token_ids[i:i + max_length])
         targets_pile.append(token_ids[i + 1:i + max_length + 1])
+    if not inputs_pile:
+        return {"error": f"Text too short for max_length={max_length} - need at least {max_length + 1} tokens."}
 
     # STEP 4 ------------------------------------------------------------------
     batch_size = min(batch_size, len(inputs_pile))
@@ -182,6 +189,24 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(500, body, "application/json; charset=utf-8")
         else:
             self._send(404, b"not found", "text/plain")
+
+    def do_POST(self):
+        """Run the journey on pasted text: POST JSON {text, batch_size, max_length}."""
+        try:
+            length = int(self.headers.get("Content-Length", 0) or 0)
+            body = {}
+            if length:
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+            data = build_journey(
+                batch_size=int(body.get("batch_size", 8)),
+                max_length=int(body.get("max_length", 4)),
+                text=(body.get("text") or None),
+            )
+            payload = json.dumps(data).encode("utf-8")
+            self._send(200, payload, "application/json; charset=utf-8")
+        except Exception as exc:  # noqa: BLE001 - surface to the frontend
+            payload = json.dumps({"error": str(exc)}).encode("utf-8")
+            self._send(500, payload, "application/json; charset=utf-8")
 
 
 def main():

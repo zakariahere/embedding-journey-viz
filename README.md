@@ -38,6 +38,15 @@ Header badges keep the five numbers that cause all the confusion visible at all
 times: 1286 (windows, from the file), 8 (batch_size, your knob),
 4 (max_length), 256 (embedding dim), [8, 4, 256] (the tensor).
 
+
+## Paste your own text
+
+Open "your own text" in the bottom bar, paste anything you like and hit
+"run journey with my text" - the whole pipeline recomputes on your words:
+real GPT-2 token IDs, windows, batch, embeddings, the works. The text is sent
+as a POST body, so even long texts work. Clear the box and re-run to go back
+to the-verdict.txt. Too-short text gets a friendly error instead of a crash.
+
 ## Tune the knobs
 
 Open "tune the knobs" to change batch_size (1-16) and max_length (2-12) and

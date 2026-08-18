@@ -162,6 +162,15 @@
   .knob-panel output{font-family:var(--mono); color:var(--cyan); float:right; font-size:12px}
   .knob-panel input[type=range]{width:100%}
   .knob-panel .note{font-size:10.5px; color:var(--faint); margin-top:8px}
+  .textbox details{position:relative}
+  .textbox summary{color:var(--dim); font-size:12.5px; cursor:pointer; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel2)}
+  .text-panel{position:absolute; bottom:44px; right:0; background:var(--panel); border:1px solid var(--border);
+    border-radius:10px; padding:14px 16px; width:460px; box-shadow:0 10px 30px rgba(0,0,0,.5); z-index:70}
+  .text-panel textarea{width:100%; background:#0a0e14; color:var(--text); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px; font-family:var(--mono); font-size:12.5px; line-height:1.6;
+    resize:vertical; min-height:96px}
+  .text-panel textarea:focus{outline:none; border-color:var(--cyan)}
+  .text-panel-row{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:8px}
   .err{display:none; background:rgba(255,123,114,.12); border:1px solid rgba(255,123,114,.5);
     color:#ffb3ad; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px}
   @media (max-width:900px){ .badges{display:none} .stage{min-width:80px} }
@@ -198,6 +207,7 @@
       <div class="subline">No numbers yet. Just characters. <span class="dim">(the-verdict.txt, a short story by Anton Chekhov)</span></div>
       <div class="facts">
         <div class="fact">characters in the file: <b id="fChars">–</b></div>
+        <div class="fact">source: <b id="fSource">the-verdict.txt</b></div>
       </div>
       <div class="text-preview" id="textPreview"></div>
       <p class="caption">A network does math on numbers, not letters — so the very next step converts this string into a flat list of numbers. <code>len(raw_text)</code> → <code>20479</code>.</p>
@@ -379,12 +389,25 @@
         </div>
       </details>
     </div>
+    <div class="textbox">
+      <details id="textDetails">
+        <summary>📝 your own text</summary>
+        <div class="text-panel">
+          <textarea id="userText" rows="5" spellcheck="false" placeholder="Paste any text here and run the whole journey on it. Leave empty to use the-verdict.txt."></textarea>
+          <div class="text-panel-row">
+            <span class="dim" id="userTextCount">0 chars · source: the-verdict.txt</span>
+            <button class="btn" id="btnApplyText">▶ run journey with my text</button>
+          </div>
+        </div>
+      </details>
+    </div>
   </div>
 </div>
 
 <script>
 'use strict';
 var state = { data:null, step:0, playing:false, timer:null, anims:[], proofTimers:[] };
+var customText = null;
 var STEPDEFS = [
   {id:'text',     num:'STEP 1',    title:'the file is plain text',       icon:'📄'},
   {id:'tokens',   num:'STEP 2',    title:'tokenize → numbers',           icon:'🔢'},
@@ -502,6 +525,7 @@ function clearAnims(){
 function renderText(){
   var d = state.data;
   $('#fChars').textContent = fmt(d.meta.char_count);
+  $('#fSource').textContent = customText ? 'your pasted text' : 'the-verdict.txt';
   $('#textPreview').textContent = d.text.preview + ' …';
 }
 
@@ -767,7 +791,10 @@ async function loadJourney(){
   $('#outMl').textContent = kv.ml;
   $('#err').style.display='none';
   try{
-    var res = await fetch('/api/journey?batch_size='+kv.bs+'&max_length='+kv.ml);
+    var url = '/api/journey?batch_size='+kv.bs+'&max_length='+kv.ml;
+    var res = customText
+      ? await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({text: customText, batch_size: kv.bs, max_length: kv.ml})})
+      : await fetch(url);
     var data = await res.json();
     if (data.error) throw new Error(data.error);
     state.data = data;
@@ -785,6 +812,13 @@ $('#btnPrev').addEventListener('click', function(){ go(state.step-1); });
 $('#btnNext').addEventListener('click', function(){ go(state.step+1); });
 $('#btnPlay').addEventListener('click', togglePlay);
 $('#btnRerun').addEventListener('click', function(){ loadJourney(); $('#knobDetails').removeAttribute('open'); });
+$('#userText').addEventListener('input', function(){ $('#userTextCount').textContent = this.value.length + ' chars'; });
+$('#btnApplyText').addEventListener('click', function(){
+  customText = $('#userText').value.trim() || null;
+  $('#userTextCount').textContent = customText ? (customText.length + ' chars · source: your pasted text') : '0 chars · source: the-verdict.txt';
+  $('#textDetails').removeAttribute('open');
+  loadJourney();
+});
 $('#knobBs').addEventListener('change', loadJourney);
 $('#knobMl').addEventListener('change', loadJourney);
 $('#knobBs').addEventListener('input', function(){ $('#outBs').textContent=this.value; });
