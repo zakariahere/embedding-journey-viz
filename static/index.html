@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The WHOLE WHOLE Journey · text → [8, 4, 256]</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2129; --border:#2a313c;
+    --text:#e6edf3; --dim:#8b949e; --faint:#59636e;
+    --cyan:#4cc2ff; --amber:#f5b942; --green:#5ce08a; --purple:#b07cf0; --red:#ff7b72;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{background:var(--bg); color:var(--text);
+    font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  ::selection{background:rgba(76,194,255,.3)}
+  button{font:inherit; cursor:pointer}
+
+  /* ---------- header ---------- */
+  header{position:sticky; top:0; z-index:50; background:rgba(13,17,23,.92);
+    backdrop-filter:blur(8px); border-bottom:1px solid var(--border)}
+  .head-inner{max-width:1180px; margin:0 auto; padding:12px 20px}
+  .title-row{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  h1{font-size:19px; letter-spacing:.5px;
+    background:linear-gradient(90deg,#4cc2ff,#b07cf0,#5ce08a);
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  .sub{color:var(--dim); font-size:12.5px; margin-top:2px}
+  .badges{display:flex; gap:8px; flex-wrap:wrap}
+  .num{background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:5px 12px; text-align:center; min-width:86px}
+  .num b{display:block; font-family:var(--mono); font-size:17px; color:var(--c,#fff)}
+  .num span{display:block; font-size:9.5px; color:var(--dim); text-transform:uppercase; letter-spacing:.4px}
+  .pipeline{display:flex; gap:6px; margin-top:12px; flex-wrap:wrap}
+  .stage{display:flex; align-items:center; gap:8px; background:var(--panel); border:1px solid var(--border);
+    border-radius:10px; padding:6px 10px; cursor:pointer; opacity:.55; transition:.2s; flex:1; min-width:110px}
+  .stage:hover{opacity:.85}
+  .stage.on{opacity:1; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan) inset}
+  .stage .ic{font-size:15px}
+  .stage .tt{font-size:11px; font-weight:600}
+  .stage .sh{font-size:9.5px; color:var(--dim); font-family:var(--mono)}
+
+  /* ---------- main ---------- */
+  main{max-width:1180px; margin:0 auto; padding:26px 20px 120px}
+  .step{display:none}
+  .step.active{display:block; animation:fadeUp .45s ease}
+  @keyframes fadeUp{from{opacity:0; transform:translateY(12px)} to{opacity:1; transform:none}}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:22px 24px; margin-bottom:18px}
+  h2{font-size:16px; margin-bottom:4px}
+  h2 .k{color:var(--cyan); font-family:var(--mono); font-size:13px; margin-right:6px}
+  .subline{color:var(--dim); font-size:13px; margin-bottom:14px}
+  .facts{display:flex; gap:10px; flex-wrap:wrap; margin:10px 0 16px}
+  .fact{background:var(--panel2); border:1px solid var(--border); border-radius:8px;
+    padding:5px 11px; font-size:12px; color:var(--dim)}
+  .fact b{color:var(--text); font-family:var(--mono); font-weight:600}
+  .caption{color:var(--dim); font-size:12.5px; margin-top:14px; max-width:820px}
+  .caption code{font-family:var(--mono); color:var(--amber); font-size:11.5px}
+  .dim{color:var(--faint); font-size:11px}
+
+  /* ---------- token chips ---------- */
+  .token-chip{--h:0; display:inline-flex; flex-direction:column; align-items:center; justify-content:center;
+    background:hsl(var(--h) 30% 16%); border:1px solid hsl(var(--h) 55% 42%);
+    border-radius:7px; padding:3px 7px; margin:2px; min-width:30px; vertical-align:top;
+    animation:pop .3s ease backwards}
+  @keyframes pop{from{opacity:0; transform:scale(.7)} to{opacity:1; transform:none}}
+  .token-chip .t{color:hsl(var(--h) 92% 76%); font-family:var(--mono); font-size:11.5px; line-height:1.25; white-space:nowrap}
+  .token-chip .i{color:#6e7681; font-family:var(--mono); font-size:8.5px; line-height:1.2}
+  .token-stream{display:flex; flex-wrap:wrap; gap:0; max-height:240px; overflow:auto; padding:6px; background:#0a0e14; border:1px solid var(--border); border-radius:10px}
+
+  /* ---------- text preview ---------- */
+  .text-preview{background:#0a0e14; border:1px solid var(--border); border-radius:10px; padding:16px 18px;
+    font-family:var(--mono); font-size:13.5px; line-height:1.75; color:#c9d1d9; white-space:pre-wrap;
+    max-height:260px; overflow:auto; border-left:3px solid rgba(76,194,255,.4)}
+
+  /* ---------- sliding window ---------- */
+  .strip-wrap{position:relative; overflow:hidden; border:1px solid var(--border); border-radius:10px;
+    background:#0a0e14; height:88px; padding-top:8px}
+  .strip{display:flex; align-items:flex-start; width:max-content; will-change:transform;
+    transition:transform .85s cubic-bezier(.4,0,.2,1); padding-left:8px}
+  .hl{position:absolute; top:6px; bottom:22px; border-radius:8px; pointer-events:none;
+    transition:left .85s cubic-bezier(.4,0,.2,1), width .85s cubic-bezier(.4,0,.2,1)}
+  .hl-in{border:2px solid rgba(76,194,255,.9); background:rgba(76,194,255,.14)}
+  .hl-tgt{border:2px dashed rgba(245,185,66,.9); background:rgba(245,185,66,.10)}
+  .win-detail{display:flex; gap:26px; margin-top:16px; flex-wrap:wrap}
+  .pile{flex:1; min-width:280px}
+  .pile h4{font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--dim); margin-bottom:6px}
+  .pile .chips{display:flex; flex-wrap:wrap}
+  .win-counter{margin-top:12px; font-family:var(--mono); color:var(--cyan); font-size:13px}
+  .in{--h:205!important} .tgt{--h:38!important}
+
+  /* ---------- batch grid ---------- */
+  .bgrid{display:inline-grid; gap:6px; background:var(--panel2); border:1px solid var(--border);
+    border-radius:10px; padding:10px}
+  .bcell{--sl:0; background:#0d1117; border:1px solid hsl(calc(var(--sl)*60) 40% 35%);
+    border-radius:8px; padding:5px 8px; text-align:center; min-width:64px}
+  .bcell.focus{box-shadow:0 0 0 2px rgba(76,194,255,.65); border-color:var(--cyan)}
+  .bcell .t{font-family:var(--mono); font-size:12px; color:#e6edf3; white-space:nowrap}
+  .bcell .i{font-family:var(--mono); font-size:9px; color:var(--faint)}
+  .qrow{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px}
+  .qcard{background:var(--panel2); border:1px solid var(--border); border-radius:8px; padding:6px 10px; font-size:12px}
+  .qcard .g{color:var(--dim)} .qcard .a{color:var(--green); font-family:var(--mono)}
+  .qarrow{color:var(--cyan); font-size:16px}
+
+  /* ---------- heatmaps ---------- */
+  .heat-row{display:flex; align-items:center; gap:12px; flex-wrap:wrap}
+  .heat-box{background:#0a0e14; border:1px solid var(--border); border-radius:10px; padding:10px; text-align:center}
+  .heat-box h4{font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px}
+  canvas{display:block; image-rendering:pixelated}
+  .vwall{display:grid; gap:8px; justify-content:start}
+  .vcell{display:flex; flex-direction:column; align-items:center; gap:3px}
+  .vlab{font-family:var(--mono); font-size:8.5px; color:var(--dim); white-space:nowrap; max-width:70px; overflow:hidden; text-overflow:ellipsis}
+  .add-demo{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:12px}
+  .plus,.eq{font-size:24px; color:var(--amber); font-weight:700}
+  .glow{animation:glow 1.2s ease}
+  @keyframes glow{0%{filter:drop-shadow(0 0 0 rgba(92,224,138,0))} 40%{filter:drop-shadow(0 0 14px rgba(92,224,138,.8))} 100%{filter:none}}
+  .badge{display:inline-block; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700; margin-top:8px}
+  .badge.same{background:rgba(245,185,66,.15); color:var(--amber); border:1px solid rgba(245,185,66,.5)}
+  .badge.diff{background:rgba(92,224,138,.15); color:var(--green); border:1px solid rgba(92,224,138,.5)}
+  .legend{display:flex; align-items:center; gap:6px; font-size:10px; color:var(--faint); font-family:var(--mono)}
+  .legend canvas{border-radius:3px}
+
+  /* ---------- proof table ---------- */
+  table.nums{border-collapse:collapse; margin-top:12px; font-family:var(--mono); font-size:11.5px}
+  table.nums th,table.nums td{border:1px solid var(--border); padding:5px 10px; text-align:left}
+  table.nums th{color:var(--dim); font-weight:600; background:var(--panel2)}
+  table.nums td.diffc{color:var(--green)}
+
+  /* ---------- recap ---------- */
+  .final-pipe{display:flex; flex-direction:column; gap:0}
+  .fp-row{display:flex; align-items:center; gap:14px; padding:10px 12px; border:1px solid var(--border);
+    border-radius:10px; background:var(--panel2); margin-bottom:0; opacity:0; animation:fadeUp .5s ease forwards}
+  .fp-row .ic{font-size:20px; width:34px; text-align:center}
+  .fp-row .lab{font-weight:600; font-size:13.5px; min-width:150px}
+  .fp-row .det{color:var(--dim); font-size:12px; flex:1}
+  .fp-row .shp{font-family:var(--mono); color:var(--cyan); font-size:13px; background:#0a0e14;
+    border:1px solid var(--border); border-radius:7px; padding:3px 10px}
+  .fp-arrow{text-align:center; color:var(--faint); font-size:18px; line-height:1; padding:2px 0}
+  .result-card{margin-top:18px; background:linear-gradient(135deg,#0b1a26,#150f26);
+    border:1px solid rgba(76,194,255,.4); border-radius:14px; padding:24px; text-align:center;
+    animation:glow 2s ease infinite}
+  .result-card .big{font-family:var(--mono); font-size:30px; color:#fff;
+    text-shadow:0 0 18px rgba(76,194,255,.7)}
+  .result-card .sm{color:var(--dim); font-size:12.5px; margin-top:6px}
+
+  /* ---------- controls ---------- */
+  .controls{position:fixed; bottom:0; left:0; right:0; z-index:60; background:rgba(13,17,23,.95);
+    backdrop-filter:blur(8px); border-top:1px solid var(--border); padding:10px 20px}
+  .controls-inner{max-width:1180px; margin:0 auto; display:flex; align-items:center; gap:14px}
+  .btn{background:var(--panel2); border:1px solid var(--border); color:var(--text);
+    border-radius:9px; padding:8px 16px; font-weight:600; transition:.15s}
+  .btn:hover{border-color:var(--cyan); color:var(--cyan)}
+  .btn.primary{background:linear-gradient(90deg,#1f6feb,#6e40c9); border:none; color:#fff; min-width:118px}
+  .btn.primary:hover{filter:brightness(1.15); color:#fff}
+  .dots{display:flex; gap:7px; flex:1; justify-content:center}
+  .dot{width:11px; height:11px; border-radius:50%; background:var(--panel2); border:1px solid var(--border); cursor:pointer; transition:.2s}
+  .dot.on{background:var(--cyan); border-color:var(--cyan); box-shadow:0 0 8px rgba(76,194,255,.7)}
+  .knobs details{position:relative}
+  .knobs summary{color:var(--dim); font-size:12.5px; cursor:pointer; padding:6px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel2)}
+  .knob-panel{position:absolute; bottom:44px; right:0; background:var(--panel); border:1px solid var(--border);
+    border-radius:10px; padding:14px 16px; width:300px; box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .knob-panel label{display:block; font-size:12px; color:var(--dim); margin:8px 0 2px}
+  .knob-panel output{font-family:var(--mono); color:var(--cyan); float:right; font-size:12px}
+  .knob-panel input[type=range]{width:100%}
+  .knob-panel .note{font-size:10.5px; color:var(--faint); margin-top:8px}
+  .err{display:none; background:rgba(255,123,114,.12); border:1px solid rgba(255,123,114,.5);
+    color:#ffb3ad; border-radius:10px; padding:12px 16px; margin-bottom:16px; font-size:13px}
+  @media (max-width:900px){ .badges{display:none} .stage{min-width:80px} }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div class="title-row">
+      <div>
+        <h1>THE WHOLE WHOLE JOURNEY</h1>
+        <div class="sub">one text file → the tensor attention consumes · mirroring step07c_the_whole_whole_journey.py</div>
+      </div>
+      <div class="badges">
+        <div class="num" style="--c:#f5b942"><b id="nWindows">–</b><span>windows · from the FILE</span></div>
+        <div class="num" style="--c:#4cc2ff"><b id="nBatch">–</b><span>batch_size · YOUR knob</span></div>
+        <div class="num" style="--c:#5ce08a"><b id="nLen">–</b><span>max_length · context</span></div>
+        <div class="num" style="--c:#b07cf0"><b id="nDim">–</b><span>embedding dim</span></div>
+        <div class="num" style="--c:#fff"><b id="nFinal">–</b><span>the final tensor</span></div>
+      </div>
+    </div>
+    <div class="pipeline" id="pipeline"></div>
+  </div>
+</header>
+
+<main>
+  <div class="err" id="err"></div>
+
+  <!-- ============ STEP 1 : TEXT ============ -->
+  <section class="step" id="s-text">
+    <div class="card">
+      <h2><span class="k">STEP 1</span> the file is just one long piece of English text</h2>
+      <div class="subline">No numbers yet. Just characters. <span class="dim">(the-verdict.txt, a short story by Anton Chekhov)</span></div>
+      <div class="facts">
+        <div class="fact">characters in the file: <b id="fChars">–</b></div>
+      </div>
+      <div class="text-preview" id="textPreview"></div>
+      <p class="caption">A network does math on numbers, not letters — so the very next step converts this string into a flat list of numbers. <code>len(raw_text)</code> → <code>20479</code>.</p>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 : TOKENS ============ -->
+  <section class="step" id="s-tokens">
+    <div class="card">
+      <h2><span class="k">STEP 2</span> tokenize: text → one flat list of numbers</h2>
+      <div class="subline">Each chip is one token: its <b>text</b> on top, its <b>ID</b> underneath. An ID is just a <i>row number</i> in the tokenizer's dictionary — not a quantity.</div>
+      <div class="facts">
+        <div class="fact">how many numbers: <b id="fTokens">–</b></div>
+        <div class="fact">first 8 IDs: <b id="fFirstIds">–</b></div>
+        <div class="fact">tokenizer: <b>gpt2 (tiktoken)</b></div>
+      </div>
+      <div class="token-stream" id="tokenStream"></div>
+      <p class="caption">id 8887 (<code>" tea"</code>) is not "bigger" than id 345 (<code>" you"</code>) — it's a different shelf in the dictionary. <span class="dim">␣ = a space that belongs to the token.</span></p>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 : WINDOWS ============ -->
+  <section class="step" id="s-windows">
+    <div class="card">
+      <h2><span class="k">STEP 3</span> slide a window over the list to make training examples</h2>
+      <div class="subline">The blue box is a window of <b>4 tokens</b> (the question). The dashed amber box is the <b>same window shifted +1</b> (the answer key): the model's job is "given these tokens, predict the next one".</div>
+      <div class="facts">
+        <div class="fact">windows created: <b id="fWindows">–</b> <span class="dim">← the 1286 (set by the FILE)</span></div>
+        <div class="fact">each window is <b id="fWlen">–</b> tokens wide <span class="dim">(max_length)</span></div>
+        <div class="fact">stride: <b id="fStride">–</b> <span class="dim">(windows don't overlap)</span></div>
+      </div>
+      <div class="strip-wrap" id="stripWrap">
+        <div class="strip" id="strip"></div>
+        <div class="hl hl-in" id="hlIn"></div>
+        <div class="hl hl-tgt" id="hlTgt"></div>
+      </div>
+      <div class="win-counter" id="winCounter"></div>
+      <div class="win-detail">
+        <div class="pile"><h4>inputs — the questions</h4><div class="chips" id="pileIn"></div></div>
+        <div class="pile"><h4>targets — answer keys (shifted +1)</h4><div class="chips" id="pileTgt"></div></div>
+      </div>
+      <p class="caption">Every window also stores a target: the same tokens shifted right by one, because the model's job is <code>given these tokens → predict the next one</code>.</p>
+    </div>
+  </section>
+
+  <!-- ============ STEP 4+5 : BATCH ============ -->
+  <section class="step" id="s-batch">
+    <div class="card">
+      <h2><span class="k">STEP 4 + 5</span> batch_size: how many windows we grab at once</h2>
+      <div class="subline">This is <b>YOUR knob</b> — it has nothing to do with the story's length. The first batch becomes a <b>[8, 4]</b> grid of token IDs.</div>
+      <div class="facts">
+        <div class="fact">batch_size: <b id="fBs">–</b> <span class="dim">← the 8 (YOUR knob)</span></div>
+        <div class="fact">total batches: <b id="fBatches">–</b></div>
+        <div class="fact">inputs.shape: <b id="fShape">–</b></div>
+      </div>
+      <div class="bgrid" id="batchGrid"></div>
+      <p class="caption">Row 0 hides 4 next-token questions stacked together:</p>
+      <div class="qrow" id="qrow"></div>
+      <p class="caption">The target row is the same row shifted by one — so ONE window is really <b>max_length</b> questions. <span class="dim">cell borders tint by slot (position in the window).</span></p>
+    </div>
+  </section>
+
+  <!-- ============ STEP 6 : TOKEN EMBEDDINGS ============ -->
+  <section class="step" id="s-embed">
+    <div class="card">
+      <h2><span class="k">STEP 6</span> token embeddings: turn each ID into a VECTOR of meaning</h2>
+      <div class="subline">An embedding layer is just a <b>lookup table</b>: a float <b>[50257 × 256]</b> grid. The token ID is the row number; the row it fetches is that token's meaning-vector. No math — a row fetch.</div>
+      <div class="facts">
+        <div class="fact">table shape: <b>50257 × 256</b> = <b id="fTableNums">–</b> learnable numbers</div>
+        <div class="fact">IDs in: <b id="fEmbIn">–</b></div>
+        <div class="fact">embeddings out: <b id="fEmbOut">–</b></div>
+      </div>
+      <div class="heat-row">
+        <div class="heat-box">
+          <h4>look up one ID → one 256-vector</h4>
+          <div class="heat-row" style="gap:10px">
+            <div id="lookupChip"></div>
+            <div style="font-size:22px;color:var(--amber)">→</div>
+            <canvas id="lookupVec" width="0" height="0"></canvas>
+          </div>
+        </div>
+        <div class="legend"><canvas id="scaleTok" width="120" height="10"></canvas><span id="scaleTokLab"></span></div>
+      </div>
+      <div class="subline" style="margin-top:16px">Every token in the batch gets its own 256-number row (64 of the 256 dims shown, chunk-averaged). Each column is one token's vector; the color is the number's value.</div>
+      <div class="vwall" id="tokenWall"></div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 7 : POSITIONAL ============ -->
+  <section class="step" id="s-position">
+    <div class="card">
+      <h2><span class="k">STEP 7</span> positional embeddings: stamp each token with WHERE it sits</h2>
+      <div class="subline">A second lookup table, indexed by <b>SLOT (0,1,2,3)</b> instead of token ID — one row per seat. Mental model: <b>chairs and stickers</b>. 4 seats; each seat has a fixed sticker (a 256-vector). Whoever sits there gets that sticker ADDED on top.</div>
+      <div class="facts">
+        <div class="fact">position table shape: <b id="fPosShape">–</b> <span class="dim">(one row per seat)</span></div>
+        <div class="fact">broadcast: the same 4 seat-vectors are added to <b>ALL</b> <span id="fAllB">–</span> windows</div>
+      </div>
+      <div class="heat-row">
+        <div class="heat-box">
+          <h4>the 4 seat-vectors (stickers)</h4>
+          <canvas id="seatHeat" width="0" height="0"></canvas>
+        </div>
+        <div class="heat-box">
+          <h4>window 0: token + seat → input</h4>
+          <div class="add-demo">
+            <canvas id="tokRow0" width="0" height="0"></canvas>
+            <div class="plus">+</div>
+            <canvas id="posRow0" width="0" height="0"></canvas>
+            <div class="eq">=</div>
+            <canvas id="inRow0" width="0" height="0"></canvas>
+          </div>
+          <div class="dim">token embeddings <span style="color:var(--cyan)">[4, 256]</span> + positional <span style="color:var(--amber)">[4, 256]</span> = input <span style="color:var(--green)">[4, 256]</span></div>
+        </div>
+      </div>
+      <div class="subline" style="margin-top:16px">The full batch after adding position — the tensor attention consumes next:</div>
+      <div class="vwall" id="inputWall"></div>
+    </div>
+  </section>
+
+  <!-- ============ PROOF ============ -->
+  <section class="step" id="s-proof">
+    <div class="card">
+      <h2><span class="k">PROOF</span> why position matters: the SAME token in 4 slots</h2>
+      <div class="subline">Feed the same token id (<code>588</code> = " like") into all 4 slots of one window. With only token embeddings the 4 rows are identical — order is invisible. After adding the seat-vectors they differ, purely because each seat contributed a different sticker.</div>
+      <div class="heat-row" style="align-items:flex-start">
+        <div class="heat-box">
+          <h4>token embeddings only</h4>
+          <canvas id="proofTok" width="0" height="0"></canvas>
+          <div class="badge same" id="badgeTok">4 identical rows</div>
+        </div>
+        <div style="font-size:30px;color:var(--dim);align-self:center">+</div>
+        <div class="heat-box">
+          <h4>seat stickers (position)</h4>
+          <canvas id="proofPos" width="0" height="0"></canvas>
+          <div class="badge" style="background:rgba(176,124,240,.15);color:var(--purple);border:1px solid rgba(176,124,240,.5)">4 fixed stickers</div>
+        </div>
+        <div style="font-size:30px;color:var(--dim);align-self:center">=</div>
+        <div class="heat-box">
+          <h4>after + positional</h4>
+          <canvas id="proofIn" width="0" height="0"></canvas>
+          <div class="badge diff" id="badgeIn">now all different</div>
+        </div>
+      </div>
+      <table class="nums" id="proofTable"></table>
+      <p class="caption">Same 256-vector fetched 4×, then 4 different stickers added on top. Same word, four different meanings-by-position.</p>
+    </div>
+  </section>
+
+  <!-- ============ RECAP ============ -->
+  <section class="step" id="s-recap">
+    <div class="card">
+      <h2><span class="k">RECAP</span> the whole of chapter 2 on one screen</h2>
+      <div class="subline">Five numbers cause all the confusion — they come from DIFFERENT places. Watch them stack into the final tensor.</div>
+      <div class="final-pipe" id="finalPipe"></div>
+      <div class="result-card">
+        <div class="big" id="finalBig">[8, 4, 256]</div>
+        <div class="sm">input_embeddings → attention (ch.3)</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="controls">
+  <div class="controls-inner">
+    <button class="btn" id="btnPrev">‹ Prev</button>
+    <button class="btn primary" id="btnPlay">▶ Play</button>
+    <button class="btn" id="btnNext">Next ›</button>
+    <div class="dots" id="dots"></div>
+    <div class="knobs">
+      <details id="knobDetails">
+        <summary>⚙ tune the knobs</summary>
+        <div class="knob-panel">
+          <label>batch_size <output id="outBs">8</output></label>
+          <input type="range" id="knobBs" min="1" max="16" value="8" step="1">
+          <label>max_length <output id="outMl">4</output></label>
+          <input type="range" id="knobMl" min="2" max="12" value="4" step="1">
+          <button class="btn" id="btnRerun" style="width:100%;margin-top:10px">↻ re-run the journey</button>
+          <div class="note">batch_size = YOUR knob. max_length = the model's context (stride follows it, non-overlapping). Re-running recomputes every step live.</div>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+var state = { data:null, step:0, playing:false, timer:null, anims:[], proofTimers:[] };
+var STEPDEFS = [
+  {id:'text',     num:'STEP 1',    title:'the file is plain text',       icon:'📄'},
+  {id:'tokens',   num:'STEP 2',    title:'tokenize → numbers',           icon:'🔢'},
+  {id:'windows',  num:'STEP 3',    title:'sliding windows',              icon:'🪟'},
+  {id:'batch',    num:'STEP 4+5',  title:'grab a batch',                 icon:'🧱'},
+  {id:'embed',    num:'STEP 6',    title:'token embeddings',             icon:'🧬'},
+  {id:'position', num:'STEP 7',    title:'+ positional',                 icon:'🪑'},
+  {id:'proof',    num:'PROOF',     title:'same token, 4 seats',          icon:'🔬'},
+  {id:'recap',    num:'RECAP',     title:'[8, 4, 256]',                  icon:'🏁'}
+];
+
+function $(s){ return document.querySelector(s); }
+function el(tag, cls, text){ var e=document.createElement(tag); if(cls)e.className=cls; if(text!=null)e.textContent=text; return e; }
+function fmt(n){ return Number(n).toLocaleString('en-US'); }
+function cleanTok(s){ return String(s).replace(/\n/g,'⏎').replace(/ /g,'␣'); }
+function hueOf(s){ var h=0; for(var i=0;i<s.length;i++){ h=(h*31 + s.codePointAt(i))>>>0; } return h%360; }
+
+function tokenChip(text, id, cls){
+  var c = el('div','token-chip'+(cls?' '+cls:''));
+  c.style.setProperty('--h', hueOf(text));
+  c.appendChild(el('span','t', cleanTok(text)));
+  c.appendChild(el('span','i', String(id)));
+  return c;
+}
+
+/* ---------------- heatmaps ---------------- */
+var VIRIDIS=[[68,1,84],[71,44,122],[59,81,139],[44,113,142],[33,144,141],[39,173,129],[92,200,99],[170,220,50],[253,231,37]];
+function lerpCol(t){
+  var x=t*(VIRIDIS.length-1), i=Math.floor(x), f=x-i, a=VIRIDIS[i], b=VIRIDIS[Math.min(i+1,VIRIDIS.length-1)];
+  return [Math.round(a[0]+(b[0]-a[0])*f), Math.round(a[1]+(b[1]-a[1])*f), Math.round(a[2]+(b[2]-a[2])*f)];
+}
+function renderHeat(canvas, rows, opts){
+  opts = opts || {};
+  var cell = opts.cell || 7, dpr = opts.dpr || 2, orient = opts.orient || 'h';
+  var H = rows.length, W = rows[0].length;
+  var mn = opts.mn, mx = opts.mx;
+  if (mn === undefined){ mn=Infinity; mx=-Infinity;
+    for(var y=0;y<H;y++){ for(var x=0;x<W;x++){ var v=rows[y][x]; if(v<mn)mn=v; if(v>mx)mx=v; } } }
+  var span = (mx-mn) || 1;
+  var cw = orient==='h' ? W*cell : cell;
+  var ch = orient==='h' ? cell : H*cell;
+  canvas.width = cw*dpr; canvas.height = ch*dpr;
+  canvas.style.width = cw+'px'; canvas.style.height = ch+'px';
+  var ctx = canvas.getContext('2d');
+  var img = ctx.createImageData(cw*dpr, ch*dpr);
+  var cd = cell*dpr;
+  for(var yy=0; yy<H; yy++){
+    var row = rows[yy];
+    for(var xx=0; xx<W; xx++){
+      var col = lerpCol((row[xx]-mn)/span);
+      var ox = orient==='h' ? xx*cd : 0;
+      var oy = yy*cd;
+      for(var dy=0; dy<cd; dy++){
+        var base = (oy+dy)*(cw*dpr) + ox;
+        for(var dx=0; dx<cd; dx++){
+          var o = (base+dx)*4;
+          img.data[o]=col[0]; img.data[o+1]=col[1]; img.data[o+2]=col[2]; img.data[o+3]=255;
+        }
+      }
+    }
+  }
+  ctx.putImageData(img,0,0);
+}
+function dataRange(data){
+  var mn=Infinity, mx=-Infinity;
+  for(var b=0;b<data.length;b++){ for(var r=0;r<data[b].length;r++){ for(var v=0;v<data[b][r].length;v++){
+    var x=data[b][r][v]; if(x<mn)mn=x; if(x>mx)mx=x; } } }
+  return [mn,mx];
+}
+function renderVectorWall(container, data, labels){
+  container.innerHTML='';
+  var range = dataRange(data);
+  var B=data.length, L=data[0].length;
+  var grid = el('div','vwall');
+  grid.style.gridTemplateColumns='repeat('+L+', auto)';
+  for(var b=0;b<B;b++){
+    for(var l=0;l<L;l++){
+      var cell = el('div','vcell');
+      var cvs = document.createElement('canvas');
+      renderHeat(cvs, data[b][l].map(function(v){ return [v]; }), {cell:5, orient:'v', mn:range[0], mx:range[1]});
+      var lab = el('div','vlab', labels[b][l]);
+      cell.title = 'window '+b+' · '+labels[b][l];
+      cell.appendChild(cvs); cell.appendChild(lab);
+      grid.appendChild(cell);
+    }
+  }
+  container.appendChild(grid);
+  return range;
+}
+function renderLegend(canvas, mn, mx){
+  var w=120, h=10, dpr=2;
+  canvas.width=w*dpr; canvas.height=h*dpr; canvas.style.width=w+'px'; canvas.style.height=h+'px';
+  var ctx=canvas.getContext('2d'), img=ctx.createImageData(w*dpr,h*dpr);
+  for(var x=0;x<w;x++){
+    var col=lerpCol(x/(w-1));
+    for(var y=0;y<h;y++){
+      for(var dy=0;dy<dpr;dy++){ for(var dx=0;dx<dpr;dx++){
+        var o=((y*dpr+dy)*w*dpr + x*dpr+dx)*4;
+        img.data[o]=col[0]; img.data[o+1]=col[1]; img.data[o+2]=col[2]; img.data[o+3]=255;
+      }}
+    }
+  }
+  ctx.putImageData(img,0,0);
+  return (mn!=null) ? mn.toFixed(2)+' … '+mx.toFixed(2) : '';
+}
+
+/* ---------------- step renderers ---------------- */
+function clearAnims(){
+  for(var i=0;i<state.anims.length;i++){ clearInterval(state.anims[i]); clearTimeout(state.anims[i]); }
+  state.anims=[];
+  for(var j=0;j<state.proofTimers.length;j++){ clearTimeout(state.proofTimers[j]); }
+  state.proofTimers=[];
+}
+
+function renderText(){
+  var d = state.data;
+  $('#fChars').textContent = fmt(d.meta.char_count);
+  $('#textPreview').textContent = d.text.preview + ' …';
+}
+
+function renderTokens(){
+  var d = state.data;
+  $('#fTokens').textContent = fmt(d.meta.token_count);
+  $('#fFirstIds').textContent = '[' + d.meta.first_ids.join(', ') + ']';
+  var stream = $('#tokenStream');
+  stream.innerHTML='';
+  d.tokens.forEach(function(t,i){
+    var chip = tokenChip(t.text, t.id);
+    chip.style.animationDelay = (i*10)+'ms';
+    stream.appendChild(chip);
+  });
+}
+
+var winAnim = null;
+function renderWindows(){
+  var d = state.data, L = d.meta.max_length;
+  $('#fWindows').textContent = fmt(d.meta.windows);
+  $('#fWlen').textContent = d.meta.max_length;
+  $('#fStride').textContent = d.meta.stride;
+
+  var strip = $('#strip');
+  strip.innerHTML='';
+  var chips = [];
+  d.tokens.forEach(function(t){ strip.appendChild(tokenChip(t.text, t.id)); chips.push(strip.lastElementChild); });
+  $('#strip').style.transition='none';
+  $('#strip').style.transform='translateX(0)';
+  void strip.offsetWidth;  // reflow
+  $('#strip').style.transition='';
+
+  var pos = chips.map(function(c){ return c.offsetLeft; });
+  var wrap = $('#stripWrap');
+  var stripW = strip.scrollWidth, wrapW = wrap.clientWidth;
+  var maxX = Math.max(0, stripW - wrapW);
+  function clampX(x){ return Math.max(0, Math.min(x, maxX)); }
+  function winLeft(w){ return pos[w*L]; }
+  function winRight(w){ return w*L+L < pos.length ? pos[w*L+L] : pos[w*L]+chips[w*L].offsetWidth; }
+  function applyWin(w){
+    var l = winLeft(w), r = winRight(w);
+    var hlIn=$('#hlIn'), hlTgt=$('#hlTgt');
+    hlIn.style.left = l+'px'; hlIn.style.width = (r-l)+'px';
+    var lt = w*L+1 < pos.length ? winLeft(w)+ (pos[w*L+1]-pos[w*L]) : l;
+    var rt = w*L+L+1 <= pos.length ? winRight(w)+ (r-l) : r;
+    hlTgt.style.left = lt+'px'; hlTgt.style.width = (rt-lt)+'px';
+    strip.style.transform = 'translateX('+(-clampX(l - 60))+'px)';
+    $('#winCounter').textContent = 'window '+w+' of '+fmt(d.meta.windows)+'   ·   tokens ['+(w*L)+':'+(w*L+L)+') → targets ['+(w*L+1)+':'+(w*L+L+1)+')';
+    var pin = $('#pileIn'), ptg = $('#pileTgt');
+    pin.innerHTML=''; ptg.innerHTML='';
+    var wd = d.windows[w];
+    if (wd){
+      wd.input_texts.forEach(function(t,i){ pin.appendChild(tokenChip(t, wd.input_ids[i], 'in')); });
+      wd.target_texts.forEach(function(t,i){ ptg.appendChild(tokenChip(t, wd.target_ids[i], 'tgt')); });
+    }
+  }
+  var w = 0, dir = 1;
+  applyWin(0);
+  clearInterval(winAnim);
+  winAnim = setInterval(function(){
+    w += dir;
+    if (w > d.windows.length-1){ dir=-1; w=d.windows.length-2; }
+    if (w < 0){ dir=1; w=1; }
+    applyWin(w);
+  }, 1100);
+  state.anims.push(winAnim);
+}
+
+function renderBatch(){
+  var d = state.data, B = d.meta.batch_size, L = d.meta.max_length;
+  $('#fBs').textContent = B;
+  $('#fBatches').textContent = fmt(d.meta.total_batches);
+  $('#fShape').textContent = '['+B+', '+L+'] = '+B+' windows × '+L+' tokens';
+  var grid = $('#batchGrid');
+  grid.innerHTML='';
+  grid.style.gridTemplateColumns = 'repeat('+L+', auto)';
+  for(var b=0;b<B;b++){
+    for(var l=0;l<L;l++){
+      var cell = el('div','bcell'+(b===0?' focus':''));
+      cell.style.setProperty('--sl', l/(Math.max(1,L-1)));
+      cell.appendChild(el('div','t', cleanTok(d.batch.decoded[b][l])));
+      cell.appendChild(el('div','i', String(d.batch.inputs[b][l])));
+      cell.title = 'window '+b+' · token '+l;
+      grid.appendChild(cell);
+    }
+  }
+  var qr = $('#qrow');
+  qr.innerHTML='';
+  d.batch.row0_questions.forEach(function(q){
+    var card = el('div','qcard');
+    card.appendChild(el('span','g', 'given '));
+    card.appendChild(el('span','', '“'+cleanTok(q.ctx)+'”'));
+    card.appendChild(el('span','g', ' → predict '));
+    card.appendChild(el('span','a', '“'+cleanTok(q.ans)+'”'));
+    qr.appendChild(card);
+    qr.appendChild(el('span','qarrow','→'));
+  });
+  qr.removeChild(qr.lastElementChild);
+}
+
+function renderEmbed(){
+  var d = state.data;
+  $('#fTableNums').textContent = fmt(d.meta.vocab_size * d.meta.output_dim);
+  $('#fEmbIn').textContent = '['+d.meta.batch_size+', '+d.meta.max_length+']';
+  $('#fEmbOut').textContent = '['+d.meta.batch_size+', '+d.meta.max_length+', '+d.meta.output_dim+']';
+  $('#lookupChip').innerHTML='';
+  $('#lookupChip').appendChild(tokenChip(d.tokens[0].text, d.tokens[0].id));
+  var t0 = d.embeddings.token_emb[0][0];
+  renderHeat($('#lookupVec'), t0.map(function(v){ return [v]; }), {cell:6, orient:'v'});
+  var range = renderVectorWall($('#tokenWall'), d.embeddings.token_emb, d.batch.decoded);
+  var lab = renderLegend($('#scaleTok'), range[0], range[1]);
+  $('#scaleTokLab').textContent = 'values '+lab+' · 64 of 256 dims (averaged)';
+}
+
+function renderPosition(){
+  var d = state.data, L = d.meta.max_length;
+  $('#fPosShape').textContent = '['+d.meta.max_length+', '+d.meta.output_dim+']';
+  $('#fAllB').textContent = d.meta.batch_size;
+  var seats = d.embeddings.pos_emb;   // [L, 64]
+  renderHeat($('#seatHeat'), seats, {cell:6});
+  renderHeat($('#tokRow0'), d.embeddings.token_emb[0], {cell:6});
+  renderHeat($('#posRow0'), seats, {cell:6});
+  var inRow0 = $('#inRow0');
+  renderHeat(inRow0, d.embeddings.input_emb[0], {cell:6});
+  inRow0.classList.remove('glow'); void inRow0.offsetWidth; inRow0.classList.add('glow');
+  renderVectorWall($('#inputWall'), d.embeddings.input_emb, d.batch.decoded);
+}
+
+function renderProof(){
+  var d = state.data;
+  var ptok = $('#proofTok'), pin = $('#proofIn');
+  renderHeat($('#proofPos'), d.embeddings.pos_emb, {cell:7});
+  function showTok(){ renderHeat(ptok, d.proof.token_display, {cell:7}); $('#badgeTok').textContent='4 identical rows'; }
+  function showIn(){ renderHeat(pin, d.proof.input_display, {cell:7}); }
+  showTok(); showIn();
+  var badge = $('#badgeIn');
+  var t1 = setTimeout(function(){ badge.textContent='≠ now all different'; }, 1400);
+  state.proofTimers.push(t1);
+
+  var tbl = $('#proofTable');
+  tbl.innerHTML='';
+  var head = el('tr','');
+  ['slot','token embeddings (first 3)','after + positional (first 3)'].forEach(function(h){
+    head.appendChild(el('th','',h));
+  });
+  tbl.appendChild(head);
+  for(var s=0;s<L();s++){
+    var tr = el('tr','');
+    tr.appendChild(el('td','', 'slot '+s));
+    tr.appendChild(el('td','', d.proof.token_first3[s].join(', ')));
+    tr.appendChild(el('td','diffc', d.proof.input_first3[s].join(', ')));
+    tbl.appendChild(tr);
+  }
+  function L(){ return d.meta.max_length; }
+}
+
+function renderRecap(){
+  var d = state.data, m = d.meta;
+  var B=m.batch_size, L2=m.max_length, D=m.output_dim;
+  var rows = [
+    {ic:'📄', lab:'text', det:'the-verdict.txt · a python str', shp:fmt(m.char_count)+' chars'},
+    {ic:'🔢', lab:'token IDs', det:'one flat list of numbers', shp:fmt(m.token_count)+' ids'},
+    {ic:'🪟', lab:'windows', det:'file / stride', shp:fmt(m.windows)+' × '+L2},
+    {ic:'🧱', lab:'batch', det:'batch_size × window', shp:'['+B+', '+L2+']'},
+    {ic:'🧬', lab:'+ meaning', det:'token embeddings (WHAT)', shp:'['+B+', '+L2+', '+D+']'},
+    {ic:'🪑', lab:'+ order', det:'positional embeddings (WHERE)', shp:'['+B+', '+L2+', '+D+']'}
+  ];
+  var pipe = $('#finalPipe');
+  pipe.innerHTML='';
+  rows.forEach(function(r,i){
+    var row = el('div','fp-row');
+    row.style.animationDelay = (i*0.18)+'s';
+    row.appendChild(el('div','ic', r.ic));
+    row.appendChild(el('div','lab', r.lab));
+    row.appendChild(el('div','det', r.det));
+    row.appendChild(el('div','shp', r.shp));
+    pipe.appendChild(row);
+    if (i < rows.length-1) pipe.appendChild(el('div','fp-arrow','↓'));
+  });
+  $('#finalBig').textContent = '['+B+', '+L2+', '+D+']';
+}
+
+var RENDERERS = [renderText, renderTokens, renderWindows, renderBatch, renderEmbed, renderPosition, renderProof, renderRecap];
+
+/* ---------------- navigation ---------------- */
+function updateHeader(){
+  var m = state.data.meta;
+  $('#nWindows').textContent = fmt(m.windows);
+  $('#nBatch').textContent = m.batch_size;
+  $('#nLen').textContent = m.max_length;
+  $('#nDim').textContent = m.output_dim;
+  $('#nFinal').textContent = '['+m.batch_size+', '+m.max_length+', '+m.output_dim+']';
+}
+function buildPipeline(){
+  var pipe = $('#pipeline');
+  pipe.innerHTML='';
+  STEPDEFS.forEach(function(s,i){
+    var chip = el('div','stage');
+    chip.appendChild(el('span','ic', s.icon));
+    var mid = el('div','');
+    mid.appendChild(el('div','tt', s.num+' '+s.title));
+    mid.appendChild(el('div','sh', shapeFor(i)));
+    chip.appendChild(mid);
+    chip.addEventListener('click', function(){ go(i); });
+    pipe.appendChild(chip);
+  });
+}
+function shapeFor(i){
+  var m = state.data.meta, B=m.batch_size, L2=m.max_length;
+  switch(i){
+    case 0: return fmt(m.char_count)+' chars';
+    case 1: return fmt(m.token_count)+' ids';
+    case 2: return fmt(m.windows)+' × '+L2;
+    case 3: return '['+B+', '+L2+']';
+    case 4: return '['+B+', '+L2+', 256]';
+    case 5: return '['+B+', '+L2+', 256]';
+    case 6: return '4 slots';
+    case 7: return 'result';
+  }
+}
+function buildDots(){
+  var dots = $('#dots');
+  dots.innerHTML='';
+  for(var i=0;i<STEPDEFS.length;i++){
+    var dot = el('div','dot');
+    dot.addEventListener('click', (function(idx){ return function(){ go(idx); }; })(i));
+    dots.appendChild(dot);
+  }
+}
+function go(i){
+  clearAnims();
+  try { history.replaceState(null,'','#'+Math.max(0,Math.min(STEPDEFS.length-1,i))); } catch(err){}
+  state.step = Math.max(0, Math.min(STEPDEFS.length-1, i));
+  var s = state.step;
+  document.querySelectorAll('.step').forEach(function(x){ x.classList.remove('active'); });
+  $('#s-'+STEPDEFS[s].id).classList.add('active');
+  document.querySelectorAll('.stage').forEach(function(x,ix){ x.classList.toggle('on', ix===s); });
+  document.querySelectorAll('.dot').forEach(function(x,ix){ x.classList.toggle('on', ix===s); });
+  RENDERERS[s]();
+}
+function stopPlay(){
+  state.playing=false;
+  $('#btnPlay').textContent='▶ Play';
+  if (state.timer){ clearInterval(state.timer); state.timer=null; }
+}
+function togglePlay(){
+  if (state.playing){ stopPlay(); return; }
+  state.playing=true;
+  $('#btnPlay').textContent='⏸ Pause';
+  state.timer = setInterval(function(){
+    if (state.step >= STEPDEFS.length-1){ stopPlay(); return; }
+    go(state.step+1);
+  }, 5600);
+}
+
+/* ---------------- data loading ---------------- */
+function knobVals(){
+  return { bs: Number($('#knobBs').value), ml: Number($('#knobMl').value) };
+}
+async function loadJourney(){
+  var kv = knobVals();
+  $('#outBs').textContent = kv.bs;
+  $('#outMl').textContent = kv.ml;
+  $('#err').style.display='none';
+  try{
+    var res = await fetch('/api/journey?batch_size='+kv.bs+'&max_length='+kv.ml);
+    var data = await res.json();
+    if (data.error) throw new Error(data.error);
+    state.data = data;
+    updateHeader();
+    buildPipeline();
+    go(state.step);
+  }catch(e){
+    $('#err').textContent = 'Could not load journey: '+e.message;
+    $('#err').style.display='block';
+  }
+}
+
+/* ---------------- init ---------------- */
+$('#btnPrev').addEventListener('click', function(){ go(state.step-1); });
+$('#btnNext').addEventListener('click', function(){ go(state.step+1); });
+$('#btnPlay').addEventListener('click', togglePlay);
+$('#btnRerun').addEventListener('click', function(){ loadJourney(); $('#knobDetails').removeAttribute('open'); });
+$('#knobBs').addEventListener('change', loadJourney);
+$('#knobMl').addEventListener('change', loadJourney);
+$('#knobBs').addEventListener('input', function(){ $('#outBs').textContent=this.value; });
+$('#knobMl').addEventListener('input', function(){ $('#outMl').textContent=this.value; });
+document.addEventListener('keydown', function(e){
+  if (e.target.tagName==='INPUT') return;
+  if (e.key==='ArrowRight') go(state.step+1);
+  if (e.key==='ArrowLeft') go(state.step-1);
+});
+var initial = Number(location.hash.replace('#',''));
+state.step = isFinite(initial) ? Math.max(0, Math.min(STEPDEFS.length-1, initial)) : 0;
+loadJourney();
+</script>
+</body>
+</html>
